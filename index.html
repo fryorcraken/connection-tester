@@ -6,9 +6,21 @@
     <title>Waku Connection Tester</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script type="module">
-        import { createLightNode, waitForRemotePeer, Protocols } from 'https://unpkg.com/@waku/sdk@0.0.33/bundle/index.js';
+        // Get Waku SDK version from URL parameter or use default
+        const urlParams = new URLSearchParams(window.location.search);
+        const wakuVersion = urlParams.get('version') || urlParams.get('v') || '0.0.33';
         
-        window.WakuSDK = { createLightNode, waitForRemotePeer, Protocols };
+        console.log(`Loading Waku SDK version: ${wakuVersion}`);
+        
+        try {
+            const { createLightNode, waitForRemotePeer, Protocols } = await import(`https://unpkg.com/@waku/sdk@${wakuVersion}/bundle/index.js`);
+            window.WakuSDK = { createLightNode, waitForRemotePeer, Protocols, version: wakuVersion };
+            window.dispatchEvent(new CustomEvent('wakuSdkLoaded'));
+        } catch (error) {
+            console.error(`Failed to load Waku SDK version ${wakuVersion}:`, error);
+            document.getElementById('nodeStatus').textContent = `Failed to load Waku SDK v${wakuVersion}`;
+            document.getElementById('logs').innerHTML = `[ERROR] Failed to load Waku SDK version ${wakuVersion}. Try a different version in the URL: ?version=0.0.26`;
+        }
     </script>
     <style>
         body {
@@ -83,7 +95,8 @@
         <h1>Waku Connection Tester</h1>
         
         <div class="status-header">
-            <h2 id="nodeStatus">Starting Waku Node...</h2>
+            <h2 id="nodeStatus">Loading Waku SDK...</h2>
+            <p id="versionInfo" style="margin: 5px 0; color: #888; font-size: 14px;"></p>
         </div>
 
         <div class="status">
@@ -349,14 +362,20 @@
         }
 
         // Wait for Waku SDK to load before initializing
-        setTimeout(() => {
+        window.addEventListener('wakuSdkLoaded', () => {
             if (window.WakuSDK) {
+                document.getElementById('versionInfo').textContent = `Using @waku/sdk v${window.WakuSDK.version}`;
                 new WakuConnectionTester();
-            } else {
-                console.error('Waku SDK failed to load');
-                document.getElementById('logs').innerHTML = '[ERROR] Failed to load Waku SDK from CDN';
             }
-        }, 1000);
+        });
+        
+        // Fallback timeout in case the event doesn't fire
+        setTimeout(() => {
+            if (!window.WakuSDK) {
+                document.getElementById('nodeStatus').textContent = 'Failed to load Waku SDK';
+                document.getElementById('logs').innerHTML = '[ERROR] Waku SDK failed to load. Check console for details.';
+            }
+        }, 10000);
     </script>
 </body>
 </html>
