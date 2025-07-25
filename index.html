@@ -58,25 +58,14 @@
             height: 400px;
             margin-top: 20px;
         }
-        .controls {
+        .status-header {
             margin-bottom: 20px;
             text-align: center;
         }
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 0 5px;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
+        .status-header h2 {
+            color: #666;
+            font-size: 18px;
+            margin: 0;
         }
         .logs {
             margin-top: 20px;
@@ -94,9 +83,8 @@
     <div class="container">
         <h1>Waku Connection Tester</h1>
         
-        <div class="controls">
-            <button id="startBtn">Start Node</button>
-            <button id="stopBtn" disabled>Stop Node</button>
+        <div class="status-header">
+            <h2 id="nodeStatus">Starting Waku Node...</h2>
         </div>
 
         <div class="status">
@@ -141,8 +129,8 @@
                 this.maxDataPoints = 50;
                 
                 this.initChart();
-                this.bindEvents();
                 this.startMonitoring();
+                this.startNode();
             }
 
             initChart() {
@@ -214,15 +202,14 @@
                 });
             }
 
-            bindEvents() {
-                document.getElementById('startBtn').addEventListener('click', () => this.startNode());
-                document.getElementById('stopBtn').addEventListener('click', () => this.stopNode());
+            updateStatus(message) {
+                document.getElementById('nodeStatus').textContent = message;
             }
 
             async startNode() {
                 try {
+                    this.updateStatus('Creating Waku node...');
                     this.log('Creating Waku node...');
-                    document.getElementById('startBtn').disabled = true;
                     
                     const { createLightNode, waitForRemotePeer, Protocols } = window.WakuSDK;
                     
@@ -230,9 +217,11 @@
                         defaultBootstrap: true
                     });
 
+                    this.updateStatus('Starting Waku node...');
                     this.log('Starting Waku node...');
                     await this.node.start();
                     
+                    this.updateStatus('Waiting for remote peers...');
                     this.log('Waiting for remote peers...');
                     await waitForRemotePeer(this.node, [
                         Protocols.Store,
@@ -241,61 +230,66 @@
                     ]);
 
                     this.isRunning = true;
-                    document.getElementById('stopBtn').disabled = false;
+                    this.updateStatus('Connected to Waku Network');
                     this.log('Waku node started successfully!');
                     
                 } catch (error) {
+                    this.updateStatus('Failed to connect to Waku Network');
                     this.log(`Error starting node: ${error.message}`);
-                    document.getElementById('startBtn').disabled = false;
                 }
             }
 
-            async stopNode() {
-                try {
-                    if (this.node) {
-                        this.log('Stopping Waku node...');
-                        await this.node.stop();
-                        this.node = null;
-                    }
-                    
-                    this.isRunning = false;
-                    document.getElementById('startBtn').disabled = false;
-                    document.getElementById('stopBtn').disabled = true;
-                    this.log('Waku node stopped.');
-                    
-                } catch (error) {
-                    this.log(`Error stopping node: ${error.message}`);
-                }
-            }
 
-            getConnectionCounts() {
+
+            async getConnectionCounts() {
                 if (!this.node || !this.isRunning) {
                     return { total: 0, store: 0, lightPush: 0, filter: 0 };
                 }
 
                 try {
                     const connections = this.node.libp2p.getConnections();
-                    const connectedPeers = new Set(connections.map(conn => conn.remotePeer.toString()));
+                    const connectedPeerIds = new Map();
+                    
+                    // Collect unique peer connections with their PeerId objects
+                    for (const conn of connections) {
+                        if (conn.status === 'open') {
+                            connectedPeerIds.set(conn.remotePeer.toString(), conn.remotePeer);
+                        }
+                    }
                     
                     let storeCount = 0;
                     let lightPushCount = 0;
                     let filterCount = 0;
 
-                    for (const peerId of connectedPeers) {
+                    // Process peers in parallel for better performance
+                    const peerPromises = Array.from(connectedPeerIds.entries()).map(async ([peerIdStr, peerId]) => {
                         try {
-                            const peer = this.node.libp2p.peerStore.get(peerId);
+                            const peer = await this.node.libp2p.peerStore.get(peerId);
                             if (peer && peer.protocols) {
-                                if (peer.protocols.some(p => p.includes('store'))) storeCount++;
-                                if (peer.protocols.some(p => p.includes('lightpush'))) lightPushCount++;
-                                if (peer.protocols.some(p => p.includes('filter'))) filterCount++;
+                                const protocols = Array.from(peer.protocols);
+                                return {
+                                    store: protocols.some(p => p.includes('store')),
+                                    lightPush: protocols.some(p => p.includes('lightpush')),
+                                    filter: protocols.some(p => p.includes('filter'))
+                                };
                             }
                         } catch (e) {
-                            // Ignore peer store errors
+                            console.debug(`Could not access peer store for ${peerIdStr}:`, e.message);
                         }
+                        return { store: false, lightPush: false, filter: false };
+                    });
+
+                    const peerResults = await Promise.all(peerPromises);
+                    
+                    // Count protocol support
+                    for (const result of peerResults) {
+                        if (result.store) storeCount++;
+                        if (result.lightPush) lightPushCount++;
+                        if (result.filter) filterCount++;
                     }
 
                     return {
-                        total: connectedPeers.size,
+                        total: connectedPeerIds.size,
                         store: storeCount,
                         lightPush: lightPushCount,
                         filter: filterCount
@@ -340,8 +334,8 @@
             }
 
             startMonitoring() {
-                setInterval(() => {
-                    const counts = this.getConnectionCounts();
+                setInterval(async () => {
+                    const counts = await this.getConnectionCounts();
                     this.updateUI(counts);
                     this.updateChart(counts);
                 }, 2000);
