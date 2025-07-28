@@ -116,6 +116,10 @@
                 <div class="status-label">Filter Protocol</div>
                 <div class="status-value" id="filterConnections">0</div>
             </div>
+            <div class="status-item">
+                <div class="status-label">Peers Discovered</div>
+                <div class="status-value" id="discoveredPeers">0</div>
+            </div>
         </div>
 
         <div class="chart-container">
@@ -277,6 +281,9 @@
             setupEventListeners() {
                 this.node.libp2p.addEventListener('peer:connect', (event) => {
                     this.connectedCount++;
+                    if (this.connectedCount === 1) {
+                        this.log(`First peer connected: ${event.detail.toString()}`);
+                    }
                     this.addPeerEventToChart('connected', this.connectedCount);
                     this.updateConnectionsDisplay();
                 });
@@ -287,7 +294,11 @@
 
                 this.node.libp2p.addEventListener('peer:discovery', (event) => {
                     this.discoveredCount++;
+                    if (this.discoveredCount === 1) {
+                        this.log(`First peer discovered: ${event.detail.id.toString()}`);
+                    }
                     this.addPeerEventToChart('discovered', this.discoveredCount);
+                    this.updateConnectionsDisplay();
                 });
             }
 
@@ -393,6 +404,7 @@
                 document.getElementById('storeConnections').textContent = counts.store;
                 document.getElementById('lightPushConnections').textContent = counts.lightPush;
                 document.getElementById('filterConnections').textContent = counts.filter;
+                document.getElementById('discoveredPeers').textContent = this.discoveredCount;
             }
 
             updateChart(counts) {
