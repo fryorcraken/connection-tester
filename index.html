@@ -194,7 +194,7 @@
                             x: {
                                 title: {
                                     display: true,
-                                    text: 'Time'
+                                    text: 'Time Elapsed'
                                 }
                             },
                             y: {
@@ -321,9 +321,9 @@
             }
 
             updateChart(counts) {
-                const now = new Date().toLocaleTimeString();
+                const elapsedSeconds = ((performance.now() - this.pageLoadTime) / 1000).toFixed(1);
                 
-                this.connectionData.timestamps.push(now);
+                this.connectionData.timestamps.push(elapsedSeconds + 's');
                 this.connectionData.total.push(counts.total);
                 this.connectionData.store.push(counts.store);
                 this.connectionData.lightPush.push(counts.lightPush);
