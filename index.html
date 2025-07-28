@@ -101,6 +101,10 @@
 
         <div class="status">
             <div class="status-item">
+                <div class="status-label">Peers Discovered</div>
+                <div class="status-value" id="discoveredPeers">0</div>
+            </div>
+            <div class="status-item">
                 <div class="status-label">Total Connections</div>
                 <div class="status-value" id="totalConnections">0</div>
             </div>
@@ -115,10 +119,6 @@
             <div class="status-item">
                 <div class="status-label">Filter Protocol</div>
                 <div class="status-value" id="filterConnections">0</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">Peers Discovered</div>
-                <div class="status-value" id="discoveredPeers">0</div>
             </div>
         </div>
 
@@ -150,6 +150,7 @@
                 this.connectedCount = 0;
                 
                 this.initChart();
+                this.initializeChartData();
                 this.startNode();
             }
 
@@ -238,6 +239,27 @@
                 });
             }
 
+            initializeChartData() {
+                // Add initial data point at time 0
+                this.connectionData.timestamps.push('0.0s');
+                this.connectionData.total.push(0);
+                this.connectionData.store.push(0);
+                this.connectionData.lightPush.push(0);
+                this.connectionData.filter.push(0);
+                this.connectionData.discovered.push(0);
+                this.connectionData.connected.push(0);
+
+                this.chart.data.labels = this.connectionData.timestamps;
+                this.chart.data.datasets[0].data = this.connectionData.total;
+                this.chart.data.datasets[1].data = this.connectionData.store;
+                this.chart.data.datasets[2].data = this.connectionData.lightPush;
+                this.chart.data.datasets[3].data = this.connectionData.filter;
+                this.chart.data.datasets[4].data = this.connectionData.discovered;
+                this.chart.data.datasets[5].data = this.connectionData.connected;
+                
+                this.chart.update('none');
+            }
+
             updateStatus(message) {
                 document.getElementById('nodeStatus').textContent = message;
             }
@@ -279,25 +301,25 @@
             }
 
             setupEventListeners() {
+                this.node.libp2p.addEventListener('peer:discovery', (event) => {
+                    if (this.discoveredCount === 0) {
+                        this.log(`First peer discovered: ${event.detail.id.toString()}`);
+                    }
+                    this.discoveredCount++;
+                    this.addPeerEventToChart('discovered', this.discoveredCount);
+                    this.updateConnectionsDisplay();
+                });
+
                 this.node.libp2p.addEventListener('peer:connect', (event) => {
-                    this.connectedCount++;
-                    if (this.connectedCount === 1) {
+                    if (this.connectedCount === 0) {
                         this.log(`First peer connected: ${event.detail.toString()}`);
                     }
+                    this.connectedCount++;
                     this.addPeerEventToChart('connected', this.connectedCount);
                     this.updateConnectionsDisplay();
                 });
 
                 this.node.libp2p.addEventListener('peer:disconnect', (event) => {
-                    this.updateConnectionsDisplay();
-                });
-
-                this.node.libp2p.addEventListener('peer:discovery', (event) => {
-                    this.discoveredCount++;
-                    if (this.discoveredCount === 1) {
-                        this.log(`First peer discovered: ${event.detail.id.toString()}`);
-                    }
-                    this.addPeerEventToChart('discovered', this.discoveredCount);
                     this.updateConnectionsDisplay();
                 });
             }
