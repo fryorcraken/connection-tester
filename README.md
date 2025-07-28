@@ -22,7 +22,10 @@ A simple HTML static website that uses @waku/sdk via CDN to monitor Waku node co
 ```bash
 npm run dev
 ```
-Then open `http://localhost:8080`
+Then open `http://localhost:8080/?v=0.0.33`
+
+You can change the version of the Waku SDK used with the `v` query parameter.
+For example: `http://localhost:8080/?v=0.0.33`
 
 ### Option 2: Direct File Access
 Simply open `index.html` directly in your browser (some browsers may block CDN imports for file:// URLs)
