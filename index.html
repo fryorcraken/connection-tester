@@ -139,6 +139,7 @@
                     filter: []
                 };
                 this.maxDataPoints = 50;
+                this.pageLoadTime = performance.now();
                 
                 this.initChart();
                 this.startMonitoring();
@@ -243,7 +244,7 @@
 
                     this.isRunning = true;
                     this.updateStatus('Connected to Waku Network');
-                    this.log('Waku node started successfully!');
+                    this.log('Waku node connected successfully!');
                     
                 } catch (error) {
                     this.updateStatus('Failed to connect to Waku Network');
@@ -357,7 +358,8 @@
                 const logs = document.getElementById('logs');
                 const now = new Date();
                 const timestamp = now.toLocaleTimeString() + '.' + now.getMilliseconds().toString().padStart(3, '0');
-                const newEntry = `<div>[${timestamp}] ${message}</div>`;
+                const timeSinceLoad = ((performance.now() - this.pageLoadTime) / 1000).toFixed(3);
+                const newEntry = `<div>[${timestamp}] ${message} (+${timeSinceLoad}s)</div>`;
                 logs.innerHTML = newEntry + logs.innerHTML;
             }
         }
