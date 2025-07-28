@@ -328,10 +328,17 @@
                 const elapsedSeconds = ((performance.now() - this.pageLoadTime) / 1000).toFixed(1);
                 
                 this.connectionData.timestamps.push(elapsedSeconds + 's');
-                this.connectionData.total.push(0); // Will be filled by updateChart
-                this.connectionData.store.push(0);
-                this.connectionData.lightPush.push(0);
-                this.connectionData.filter.push(0);
+                
+                // Use previous known values instead of 0
+                const lastTotal = this.connectionData.total.length > 0 ? this.connectionData.total[this.connectionData.total.length - 1] : 0;
+                const lastStore = this.connectionData.store.length > 0 ? this.connectionData.store[this.connectionData.store.length - 1] : 0;
+                const lastLightPush = this.connectionData.lightPush.length > 0 ? this.connectionData.lightPush[this.connectionData.lightPush.length - 1] : 0;
+                const lastFilter = this.connectionData.filter.length > 0 ? this.connectionData.filter[this.connectionData.filter.length - 1] : 0;
+                
+                this.connectionData.total.push(lastTotal);
+                this.connectionData.store.push(lastStore);
+                this.connectionData.lightPush.push(lastLightPush);
+                this.connectionData.filter.push(lastFilter);
                 this.connectionData.discovered.push(eventType === 'discovered' ? count : this.discoveredCount);
                 this.connectionData.connected.push(eventType === 'connected' ? count : this.connectedCount);
 
