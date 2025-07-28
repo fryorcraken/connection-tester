@@ -355,9 +355,10 @@
 
             log(message) {
                 const logs = document.getElementById('logs');
-                const timestamp = new Date().toLocaleTimeString();
-                logs.innerHTML += `[${timestamp}] ${message}\n`;
-                logs.scrollTop = logs.scrollHeight;
+                const now = new Date();
+                const timestamp = now.toLocaleTimeString() + '.' + now.getMilliseconds().toString().padStart(3, '0');
+                const newEntry = `<div>[${timestamp}] ${message}</div>`;
+                logs.innerHTML = newEntry + logs.innerHTML;
             }
         }
 
